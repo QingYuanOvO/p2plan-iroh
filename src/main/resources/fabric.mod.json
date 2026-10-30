@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "p2plan",
+  "version": "${version}",
+  "name": "P2P LAN",
+  "description": "模组内置的 Minecraft 点对点联机（iroh/QUIC）：自动 NAT 穿透 + 公共中继兜底 + 房间码 + 离线固定 UUID。不需要任何外部客户端或自建服务器。",
+  "authors": [
+    "21283"
+  ],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.p2plan.P2PLanMod"
+    ],
+    "client": [
+      "com.p2plan.client.P2PLanClient"
+    ]
+  },
+  "mixins": [
+    "p2plan.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

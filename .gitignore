@@ -1,0 +1,42 @@
+# Gradle / 构建产物
+build/
+.gradle/
+.gradle-home/
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.ipr
+*.iws
+
+# 运行期产物（本地跑游戏/测试时生成的散落目录；一律用 / 锚定到仓库根，
+# 否则会误伤同名的源码目录 src/main/java/com/p2plan 与资源 assets/p2plan）
+/run/
+/logs/
+/crash-reports/
+/p2plan/
+/runClient/
+*.log
+
+# Fabric / Loom 生成物
+/remappedJars/
+/.fabric/
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 本地身份与密钥（**绝对不要提交**；这些只会出现在游戏目录，不会在源码里）
+iroh-key.bin*
+identity.txt
+last-secret.txt
+working-addrs.properties
+history.txt
+verify-offline.txt
+port.txt
+relay-enabled.txt
+first-open-hinted.txt
+identities.txt

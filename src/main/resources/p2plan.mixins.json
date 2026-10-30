@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.p2plan.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "UUIDUtilMixin"
+  ],
+  "client": [],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

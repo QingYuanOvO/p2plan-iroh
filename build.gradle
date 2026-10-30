@@ -1,0 +1,281 @@
+// p2plan-iroh —— Minecraft 26.3 / Fabric 模组（iroh 版隧道）
+//
+// 与 p2plan-26.3 的区别：隧道层由自研 UDP 打洞换成 iroh（Rust 的 QUIC P2P 库）。
+// iroh 自带打洞、DERP 中继回退、端到端加密、稳定 NodeID，比手写的更可靠。
+//
+// 注意：Kotlin 编译器 2.2.x 最高只支持 JVM_24 目标，所以 Java 侧也一起对齐到 24。
+// 这不影响运行——MC 26.3 的 JDK 25 能正常加载 24 字节码。
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'org.jetbrains.kotlin.jvm' version "${kotlin_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // iroh：Kotlin 绑定 + 协程运行时。官方 jar 是全平台打包（约 24MB）。
+    //
+    // 两条配置缺一不可：
+    //   implementation —— 编译期可见（Kotlin/Java 才能 import computer.iroh.*）
+    //   include        —— 打包期嵌入（Loom 的 jar-in-jar，游戏运行时才加载得到）
+    implementation "computer.iroh:iroh:${project.iroh_version}"
+    include "computer.iroh:iroh:${project.iroh_version}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${project.coroutines_version}"
+    include "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${project.coroutines_version}"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_version}"
+    include "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_version}"
+    // jna 只要编译期可见：MC 26.3 自带 net.java.dev.jna:jna:5.17.0（比 iroh 要的 5.15.0 新），
+    // 再打一份进去既多约 1.9MB，又会和游戏自带版本抢类加载。
+    compileOnly "net.java.dev.jna:jna:5.15.0"
+}
+
+def targetJvm = 24
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release = targetJvm
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_24
+        // 保留参数名，方便 Java 侧按名字调用 Kotlin 函数
+        javaParameters = true
+    }
+}
+
+java {
+    def javaVersion = JavaVersion.toVersion(targetJvm)
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
+
+// ------------------------------------------------------------------ iroh 原生库裁剪
+//
+// 官方 computer.iroh:iroh 把 4 个平台的原生库塞进同一个 jar（win32-x86-64 / linux-x86-64 /
+// linux-aarch64 / darwin-aarch64），约 24MB。本模组只面向 Windows x64 玩家。
+//
+// 做法：Loom 的 include 会把 iroh 以 META-INF/jars/iroh-<ver>.jar 形式嵌进产物。
+// 我们在 jar 打完之后，把这个嵌套 jar 换成「只保留 win32-x86-64」的裁剪版。
+def trimIrohInJar = tasks.register('trimIrohInJar') {
+    description = 'Replace nested iroh jar with a Windows-x64-only copy'
+    def jarTask = tasks.named('jar')
+    dependsOn jarTask
+    doLast {
+        def outJar = jarTask.get().archiveFile.get().asFile
+        if (!outJar.exists()) {
+            throw new GradleException("产物 jar 不存在：$outJar")
+        }
+        def tmp = new File(outJar.parentFile, outJar.name + '.tmp')
+
+        // 1) 找出真正的 iroh jar（Gradle 缓存里那个 24MB 的全平台 jar）
+        def irohSrc = configurations.runtimeClasspath.files.find {
+            it.name.startsWith('iroh-') && it.name.endsWith('.jar') && !it.name.contains('sources')
+        }
+        if (irohSrc == null) {
+            logger.lifecycle('[iroh] 未找到 iroh jar，跳过裁剪')
+            return
+        }
+
+        // 2) 先在内存里建出裁剪版 iroh jar：
+        //    a) 丢掉非 Windows 平台的原生库（实测嵌套 jar 24.17MB → 6.10MB，这是真实收益）；
+        //    b) 补一个 fabric.mod.json —— 官方 iroh jar 没有，Fabric 会直接忽略它，
+        //       导致运行期 NoClassDefFoundError。
+        //
+        //    ponytail: 别再尝试「把 dll 先 gzip 再放进 jar」—— 实测无效。
+        //    外层 mod jar 本身就以 DEFLATE 压缩每个条目，内层再压属于双重压缩，
+        //    最终产物大小不变（实测 9.09MB → 9.10MB），只会白白增加运行期解压代码。
+        def trimmedIroh = new ByteArrayOutputStream()
+        new java.util.zip.ZipOutputStream(trimmedIroh).withCloseable { zos ->
+            boolean hasModJson = false
+            boolean wroteDll = false
+            new java.util.zip.ZipFile(irohSrc).withCloseable { zf ->
+                zf.entries().each { e ->
+                    if (e.isDirectory()) return
+                    def n = e.name
+                    if (n.startsWith('linux-x86-64/') || n.startsWith('linux-aarch64/')
+                            || n.startsWith('darwin-aarch64/')) {
+                        return // 丢掉非 Windows 平台的原生库
+                    }
+                    if (n == 'fabric.mod.json') {
+                        hasModJson = true
+                    }
+                    if (n == 'win32-x86-64/iroh_ffi.dll') {
+                        wroteDll = true
+                    }
+                    zos.putNextEntry(new java.util.zip.ZipEntry(n))
+                    zf.getInputStream(e).withCloseable { zos.write(it.bytes) }
+                    zos.closeEntry()
+                }
+            }
+            if (!wroteDll) {
+                logger.lifecycle('[iroh] 警告：没找到 win32-x86-64/iroh_ffi.dll，运行期将无法加载原生库')
+            }
+            if (!hasModJson) {
+                // 补一个库描述：Fabric 只要求 id/version 等最小字段
+                def modJson = """{
+  "schemaVersion": 1,
+  "id": "iroh",
+  "version": "${project.iroh_version}",
+  "name": "iroh (bundled)",
+  "description": "iroh QUIC P2P library, bundled and trimmed for Windows x64",
+  "license": "MIT OR Apache-2.0",
+  "environment": "*"
+}
+"""
+                zos.putNextEntry(new java.util.zip.ZipEntry('fabric.mod.json'))
+                zos.write(modJson.getBytes('UTF-8'))
+                zos.closeEntry()
+            }
+        }
+        def trimmedBytes = trimmedIroh.toByteArray()
+
+        // 3) 重写最终 jar：嵌套的 iroh jar 换成裁剪版
+        int replaced = 0
+        new java.util.zip.ZipOutputStream(new FileOutputStream(tmp)).withCloseable { zos ->
+            new java.util.zip.ZipFile(outJar).withCloseable { zf ->
+                zf.entries().each { e ->
+                    if (e.isDirectory()) {
+                        zos.putNextEntry(new java.util.zip.ZipEntry(e.name))
+                        zos.closeEntry()
+                        return
+                    }
+                    zos.putNextEntry(new java.util.zip.ZipEntry(e.name))
+                    def data
+                    if (e.name == "META-INF/jars/${irohSrc.name}") {
+                        data = trimmedBytes
+                        replaced++
+                    } else {
+                        data = zf.getInputStream(e).bytes
+                    }
+                    zos.write(data)
+                    zos.closeEntry()
+                }
+            }
+        }
+        if (!tmp.renameTo(outJar)) {
+            java.nio.file.Files.move(tmp.toPath(), outJar.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        }
+        logger.lifecycle("[iroh] 裁剪完成：替换嵌套 jar ${replaced} 个，" +
+                "产物 ${(outJar.length() / 1024 / 1024).round(2)} MB（原平台全量约 29 MB）")
+    }
+}
+
+// build 完成后自动裁剪
+tasks.named('build') { finalizedBy trimIrohInJar }
+
+// iroh 隧道自检：不启 MC，验证「iroh QUIC 流 + TCP 桥」整条链路
+tasks.register('irohSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'In-process iroh tunnel self-test (no Minecraft needed)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.IrohSelfTest'
+}
+
+// 上层路径自检：Tunnels.host/guest → IrohTunnel（游戏真正走的那条路）
+tasks.register('irohTunnelTest', JavaExec) {
+    group = 'verification'
+    description = 'Verify Tunnels.host/guest path (same as in-game flow)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.IrohTunnelSelfTest'
+    // 同 JVM 内跑 host+guest，必须给两份独立身份，否则 NodeID 相同无法互连
+    systemProperty 'p2plan.identity.host', 'selftest-host'
+    systemProperty 'p2plan.identity.guest', 'selftest-guest'
+}
+
+
+// 跨进程探针：两个独立 JVM 走 Tunnels.host/guest 真实 QUIC 互通
+tasks.register('irohCrossHost', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.IrohCrossProbe'
+    args 'host', System.getProperty('handoff', 'build/cross-handoff.txt')
+    // 两个探针 JVM 的 configDir 都回退到同一个 java.io.tmpdir/p2plan；身份持久化后会
+    // 读到同一份密钥 → 同一个 NodeID → iroh 拒绝自连（实测 SocketException 连接中止）。
+    // 各给一个命名空间即模拟现实中「房主与访客是两个不同身份」。
+    systemProperty 'p2plan.identity.host', 'cross-host'
+}
+tasks.register('irohCrossGuest', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.IrohCrossProbe'
+    args 'guest', System.getProperty('handoff', 'build/cross-handoff.txt')
+    systemProperty 'p2plan.identity.guest', 'cross-guest'
+}
+
+
+// 房间码稳定性验证：连续两次开房，比较 NodeID 与地址（验证持久身份是否真的稳定）
+tasks.register('irohStability', JavaExec) {
+    group = 'verification'
+    description = 'Verify persistent NodeID keeps the room code stable'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.IrohStabilityProbe'
+    args 'verbose'
+    systemProperty 'p2plan.identity.host', 'stability'
+}
+
+
+// 长会话保持测试：专防「pumpBoth 的 join 超时把健康连接杀掉」（进服约 60 秒必断）
+tasks.register('irohLongSessionTest', JavaExec) {
+    group = 'verification'
+    description = 'Hold a real tunnel session 100s with traffic, assert no mid-session drop'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.IrohLongSessionTest'
+    // 同 JVM 内 host+guest 必须两份独立身份，否则 NodeID 相同无法互连
+    systemProperty 'p2plan.identity.host', 'longsession-host'
+    systemProperty 'p2plan.identity.guest', 'longsession-guest'
+}
+
+// 房间码逻辑穷举：往返/容错/篡改/安全边界/畸形输入健壮性（不依赖网络）
+tasks.register('roomCodeLogicTest', JavaExec) {
+    group = 'verification'
+    description = 'Exhaustive room-code logic test (no network)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.RoomCodeLogicTest'
+}
+
+// 工况矩阵：S1 中继开 / S2 纯 P2P / S3 并发两访客 / S4 候选乱序 / S5 固定端口撞车回退。
+// 单进程多端点（各自独立身份命名空间），不依赖外部编排 —— 跨进程探针容易踩时序坑。
+// 诚实边界：能验「代码在各条件下走对分支、传对数据」，验不了真实 NAT 拓扑（那要两台不同网络的机器）。
+tasks.register('scenarioMatrix', JavaExec) {
+    group = 'verification'
+    description = 'Run the network-condition scenario matrix'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.ScenarioMatrix'
+}
+
+// 探测 iroh 公共中继（DERP）在当前网络是否可用 —— 决定对称 NAT 能否兜底
+tasks.register('irohRelayProbe', JavaExec) {
+    group = 'verification'
+    description = 'Probe whether the public iroh relay (DERP) is reachable'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p2plan.iroh.IrohRelayProbe'
+    systemProperty 'p2plan.identity.host', 'relayprobe'
+}
