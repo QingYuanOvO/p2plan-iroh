@@ -1,0 +1,23 @@
+# 统一换行符策略：
+#  - 文本文件在仓库里一律存 LF，checkout 时按平台转换（Windows 得 CRLF）
+#  - .bat 必须是 CRLF，否则 cmd.exe 解析会出怪问题
+#  - .jar 等二进制不做任何转换
+* text=auto
+
+*.java   text eol=lf
+*.kt     text eol=lf
+*.gradle text eol=lf
+*.md     text eol=lf
+*.json   text eol=lf
+*.properties text eol=lf
+*.gitignore  text eol=lf
+*.gitattributes text eol=lf
+
+# cmd.exe 只认 CRLF
+*.bat    text eol=crlf
+
+# 二进制：不做行尾转换，也别让 git 尝试 diff
+*.jar    binary
+*.dll    binary
+*.png    binary
+*.zip    binary

@@ -4,6 +4,9 @@ build/
 .gradle-home/
 .kotlin/
 
+# Release 资产暂存（jar 走 GitHub Release 附件，不进源码仓库）
+/release-assets/
+
 # IDE
 .idea/
 *.iml
