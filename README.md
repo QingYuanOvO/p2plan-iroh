@@ -6,12 +6,23 @@
 > 不在本仓库内）：它无原生依赖、可跨平台，但打洞率不如 iroh，双边对称 NAT 需自己架中继。
 > 日常用 iroh 版即可。
 
+## 下载
+
+从 [**Releases 页面**](https://github.com/QingYuanOvO/p2plan-iroh/releases/latest) 下载
+`p2plan-iroh-0.1.0.jar`（约 9 MB），放进 `.minecraft/mods/`。
+
+| 当前版本 | 适用环境 |
+|---|---|
+| v0.1.0 | Minecraft **26.3** / Fabric Loader 0.19.5+ / **仅 Windows x64** |
+
+> ⚠️ **仅 Windows x64**。Linux / macOS 玩家需自行改 `build.gradle` 的原生库裁剪规则重新构建（见「自行扩展」）。
+
 ---
 
 ## 快速开始（两人联机）
 
 **前置**：双方都装 [Fabric Loader](https://fabricmc.net/use/installer/) 0.19.5+ 与 Minecraft 26.3，并把
-`p2plan-iroh-*.jar` 和 [Fabric API](https://modrinth.com/mod/fabric-api) 放进 `mods/` 目录。
+上面下载的 jar 和 [Fabric API](https://modrinth.com/mod/fabric-api) 放进 `mods/` 目录。
 
 | 步骤 | 房主 | 访客 |
 |---|---|---|
