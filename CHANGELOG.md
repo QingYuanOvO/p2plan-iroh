@@ -1,6 +1,26 @@
 # Changelog
 
-本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。版本号形如 `0.1.0`，构建产物名带后缀 `-iroh`（与旧的自研 UDP 版区分）。
+本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [0.1.1] - 2026-11-03
+
+功能与 0.1.0 相同（联机行为没有改动），本版做的是**体积、可维护性与发布工程**：
+
+### 改进
+
+- **文案国际化**：玩家可见的全部文字改走语言文件，中英各 96 键一一对齐。选择英文语言的玩家
+  不再看到中英混排（面板、验证模式按钮、状态栏、踢出提示、进服连接方式播报、房间码有效期）。
+- **运行 jar 瘦身**：旧的自研 UDP 打洞实现（`UdpTunnel` / `Stun` / `ReliableStream` / `TcpBridge` /
+  `Upnp` / `RelayServer` / `RelayProtocol` / `SelfTest` / `P2PRelay` / `LoopbackProbe`）移到仓库
+  `legacy/` 目录——保留作历史参考，但不再参与编译、也不进 jar。产物 **9.12 → 9.06 MB**。
+- **CI**：新增 GitHub Actions（Windows + JDK 25 + Gradle 9.6）。每次推送自动跑
+  房间码逻辑穷举、工况矩阵、100 秒长会话回归，然后打包；推 `v*` tag 时自动把 jar 附到 Release。
+- LICENSE 署名更新为 `QingYuanOvO`；README 补入口截图。
+
+### 说明
+
+- 联机行为、房间码格式、配置路径**均未变化**，可从 0.1.0 直接覆盖升级。
+- 已实测：两台不同手机热点（对称型 NAT）之间的 IPv6 直连，连接稳定、延迟正常。
 
 ## [0.1.0] - 2026-10-30
 
