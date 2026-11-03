@@ -203,14 +203,21 @@ public class P2PLanClient implements ClientModInitializer {
                 if (q == null) {
                     return; // 不是 P2P 进服（比如直连局域网），或质量还没测出来
                 }
-                String text = "[P2P] 连接方式：" + q.describe();
+                // 翻译必须在渲染线程做：Language.getInstance() 不是线程安全的
                 client.execute(() -> {
                     try {
                         if (client.player != null) {
-                            // 26.3 的 API：LocalPlayer.sendSystemMessage(Component)（旧的
-                            // displayClientMessage(String, boolean) 已不在）
+                            net.minecraft.network.chat.Component mode =
+                                    net.minecraft.network.chat.Component.translatable(q.modeKey());
+                            String rtt = q.rttText();
+                            String addr = q.getRemoteAddr().isBlank() ? "" : " · " + q.getRemoteAddr();
+                            net.minecraft.network.chat.Component body =
+                                    net.minecraft.network.chat.Component.literal(
+                                            mode.getString() + " · " + rtt + addr);
+                            // 26.3 的 API：LocalPlayer.sendSystemMessage(Component)
                             client.player.sendSystemMessage(
-                                    net.minecraft.network.chat.Component.literal(text));
+                                    net.minecraft.network.chat.Component.translatable(
+                                            "p2plan.quality.line", body));
                         }
                     } catch (Throwable ignored) {
                     }

@@ -232,12 +232,23 @@ data class IrohQuality(
     /** iroh 当前记录的路径条数（>1 说明它同时试了多条再择优）。 */
     val pathCount: Int,
 ) {
-    /** 一句话描述，直接显示给玩家。 */
+    /**
+     * 连接方式的语言键（{@code p2plan.quality.*}）。
+     *
+     * <p>本类不依赖 Minecraft（纯 JVM 自检要用），所以只给键，翻译在 GUI 层完成。
+     */
+    fun modeKey(): String =
+        if (relayed) "p2plan.quality.relay" else "p2plan.quality.direct"
+
+    /** 延迟部分：测出来就是具体毫秒，否则给"测量中"的键。 */
+    fun rttText(): String =
+        if (rttMs >= 0) "$rttMs ms" else "—"
+
+    /** 纯文本描述（日志/自检用，不翻译）。 */
     fun describe(): String {
-        val mode = if (relayed) "中继" else "直连"
-        val rtt = if (rttMs >= 0) "$rttMs ms" else "延迟测量中"
+        val mode = if (relayed) "relay" else "direct"
         val addr = if (remoteAddr.isBlank()) "" else " · $remoteAddr"
-        return "$mode · $rtt$addr"
+        return "$mode · ${rttText()}$addr"
     }
 }
 

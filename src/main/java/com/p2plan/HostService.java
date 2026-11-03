@@ -207,8 +207,7 @@ public final class HostService {
             ServerPlayer p = server.getPlayerList().getPlayer(e.getKey());
             pending.remove(e.getKey());
             if (p != null) {
-                p.connection.disconnect(Component.literal(
-                        "[P2P LAN] 未提供正确的房间口令，已断开。请用房间码加入。"));
+                p.connection.disconnect(Component.translatable("p2plan.kick.no_handshake"));
                 P2PLanMod.LOGGER.info("[p2plan] {} 握手超时，已断开", p.getName().getString());
             }
         }
@@ -223,7 +222,7 @@ public final class HostService {
         // 绝不把它们送进 UuidStore 的 synchronized 哈希路径（恶意客户端反复发超长串
         // 会在房主主线程放大 CPU/锁竞争）。
         if ((secret != null && secret.length() > 64) || (token != null && token.length() > 64)) {
-            player.connection.disconnect(Component.literal("[P2P LAN] 握手数据异常。"));
+            player.connection.disconnect(Component.translatable("p2plan.kick.bad_handshake"));
             return;
         }
         // 房间码过期在这里也是裁决：GUI 层拒绝只是防误操作，不是安全边界。
@@ -231,14 +230,14 @@ public final class HostService {
         long exp = roomExpiresAt;
         if (exp > 0 && System.currentTimeMillis() / 1000L > exp) {
             pending.remove(player.getUUID());
-            player.connection.disconnect(Component.literal("[P2P LAN] 房间码已过期，请向房主重新要一张。"));
+            player.connection.disconnect(Component.translatable("p2plan.kick.code_expired"));
             return;
         }
         UUID uuid = player.getUUID();
         if (requireSecret) {
             if (secret == null || inviteSecret == null || !secret.equalsIgnoreCase(inviteSecret)) {
                 pending.remove(uuid);
-                player.connection.disconnect(Component.literal("[P2P LAN] 房间口令不正确。"));
+                player.connection.disconnect(Component.translatable("p2plan.kick.bad_secret"));
                 P2PLanMod.LOGGER.info("[p2plan] {} 口令错误，已拒绝", player.getName().getString());
                 return;
             }
@@ -250,9 +249,8 @@ public final class HostService {
         if (token != null && !token.isEmpty()) {
             UUID claimed = UuidStore.get().claimByToken(player.getName().getString(), token);
             if (claimed != null && !claimed.equals(uuid)) {
-                player.sendSystemMessage(Component.literal(
-                        "[P2P LAN] 已识别你的旧身份（" + RoomCode.uuidShort(claimed)
-                                + "），重进一次即可接上原有背包与成就。"));
+                player.sendSystemMessage(Component.translatable(
+                        "p2plan.identity.bound", RoomCode.uuidShort(claimed)));
             } else if (claimed == null) {
                 // 首次见面：把「令牌 ↔ 本局 UUID」记下来。没有这一步，令牌链是死的 ——
                 // 玩家改名后 claimByToken 永远查不到，「改名不丢背包」就只是文档承诺。

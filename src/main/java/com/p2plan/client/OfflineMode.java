@@ -33,12 +33,12 @@ public final class OfflineMode {
      * 切换当前存档的验证模式：正版验证开 → 离线 UUID，或反过来。
      * 切换结果会被记住，下次进任何存档自动恢复（玩家偏好，不区分存档）。
      *
-     * @return 给玩家看的结果文案（成功/失败都直接显示）
+     * @return 给玩家看的**语言键**（成功/失败都要显示）；由调用方 {@code Component.translatable} 渲染
      */
     public static String toggle(Minecraft mc) {
         IntegratedServer server = mc == null ? null : mc.getSingleplayerServer();
         if (server == null) {
-            return "请先进入一个单人存档再切换（该开关作用于当前世界的集成服务器）";
+            return "p2plan.state.verify_no_world";
         }
         try {
             boolean currentlyOnline = server.usesAuthentication();
@@ -48,17 +48,17 @@ public final class OfflineMode {
                 attachIdentities(server);
                 savePreference(true);
                 P2PLanMod.LOGGER.info("[p2plan] 已切换到「离线 UUID」并记住：正版验证关闭，离线账户可以进房");
-                return "已切换为「离线 UUID」：正版验证已关闭，离线账户可以进房；UUID 由本模组固定";
+                return "p2plan.state.verify_to_offline";
             } else {
                 // → 正版验证
                 server.setUsesAuthentication(true);
                 savePreference(false);
                 P2PLanMod.LOGGER.info("[p2plan] 已切换到「正版验证」并记住：只有正版账户能进房");
-                return "已切换为「正版验证」：只有正版账户能进房";
+                return "p2plan.state.verify_to_online";
             }
         } catch (Throwable t) {
             P2PLanMod.LOGGER.warn("[p2plan] 切换验证模式失败", t);
-            return "切换失败：" + t.getMessage();
+            return "p2plan.state.verify_failed";
         }
     }
 
@@ -142,18 +142,18 @@ public final class OfflineMode {
     /** 按钮标签：只写当前状态，不带括号说明（说明放悬停提示里）。 */
     public static String currentLabel(Minecraft mc) {
         if (!inWorld(mc)) {
-            return "验证模式：未入档";
+            return "p2plan.verify.out_of_world";
         }
-        return isOffline(mc) ? "验证模式：离线" : "验证模式：正版";
+        return isOffline(mc) ? "p2plan.verify.offline" : "p2plan.verify.online";
     }
 
     /** 悬停提示：解释这个按钮是干什么的。 */
     public static String tooltip(Minecraft mc) {
         if (!inWorld(mc)) {
-            return "先进入一个单人存档（开关作用于当前世界的服务器）";
+            return "p2plan.verify.tip_no_world";
         }
         return isOffline(mc)
-                ? "点一下切回「正版」：只有正版账户能进房"
-                : "点一下切到「离线」：离线账户也能进房，玩家名用固定 UUID，改名不丢背包";
+                ? "p2plan.verify.tip_to_online"
+                : "p2plan.verify.tip_to_offline";
     }
 }

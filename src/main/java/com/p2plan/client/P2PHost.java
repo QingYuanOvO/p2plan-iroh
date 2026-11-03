@@ -279,7 +279,7 @@ public final class P2PHost {
             if (st != null && st.state() == TunnelState.FAILED) {
                 abort(gen, tunnel);
                 if (gen == generation) {
-                    status = Component.translatable("p2plan.state.open_failed", st.describe());
+                    status = Component.translatable("p2plan.state.open_failed", label(st));
                 }
                 return null;
             }
@@ -315,7 +315,24 @@ public final class P2PHost {
         if (st == null || gen != generation) {
             return;
         }
-        status = Component.literal(st.describe());
+        status = label(st);
+    }
+
+    /**
+     * 把隧道状态翻成界面文案：阶段名走语言文件，{@code detail} 原样附在后面。
+     *
+     * <p>为什么不让 {@link TunnelStatus} 自己翻译：{@code tunnel} 包必须能在纯 JVM 自检里
+     * 加载（不带 Minecraft），所以那边只给语言键（{@link TunnelStatus#stateKey()}）。
+     */
+    static Component label(TunnelStatus st) {
+        if (st == null) {
+            return Component.empty();
+        }
+        String detail = st.detail();
+        Component head = Component.translatable(st.stateKey());
+        return (detail == null || detail.isBlank())
+                ? head
+                : Component.translatable("p2plan.tunnel.line", head, detail);
     }
 
     // ------------------------------------------------------------ 工具

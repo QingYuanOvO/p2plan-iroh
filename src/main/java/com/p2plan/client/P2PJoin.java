@@ -139,7 +139,7 @@ public final class P2PJoin {
             // 隧道绑定阶段就失败了（iroh 起不来）→ 立刻报因，不陪玩家等满 30 秒超时
             TunnelStatus st = t.status();
             if (st != null && st.state() == TunnelState.FAILED) {
-                status = Component.translatable("p2plan.state.join_failed", st.describe());
+                status = Component.translatable("p2plan.state.join_failed", P2PHost.label(st));
                 detach(gen, t);
                 return null;
             }
@@ -258,7 +258,7 @@ public final class P2PJoin {
         if (st == null || gen != generation) {
             return;
         }
-        status = Component.literal(st.describe());
+        status = P2PHost.label(st);
     }
 
     // ------------------------------------------------------------ 工具

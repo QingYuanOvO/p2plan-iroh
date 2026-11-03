@@ -12,8 +12,8 @@ import java.util.function.Consumer;
  * 自带打洞、端到端加密、稳定 NodeID。上层（{@code P2PHost}/{@code P2PJoin}/GUI/房间码）
  * 一行都不用改，因为它们只依赖 {@link P2PTunnel} 接口。
  *
- * <p>旧的自研 UDP 打洞实现（{@code UdpTunnel}）仍留在源码里作为参考与回退，
- * 但不再被这里使用。
+ * <p>旧的自研 UDP 打洞实现（UdpTunnel / RelayServer / Stun 等）已移到仓库的
+ * {@code legacy/} 目录：保留作历史参考，<b>不参与编译、也不进运行 jar</b>。
  */
 public final class Tunnels {
 

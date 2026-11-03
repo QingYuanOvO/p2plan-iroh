@@ -1,0 +1,67 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # 本模组的 jar 只打包 Windows x64 原生库（iroh_ffi.dll），但构建本身跨平台可跑；
+    # 用 windows-latest 与发布产物保持完全一致（路径/换行/native 裁剪都按 Windows 验）。
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Loom 1.17 + MC 26.3 需要 JDK 21+；项目用 release=24，所以直接上 25。
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # 与本地脚本使用的版本一致（本项目无 wrapper）
+          gradle-version: '9.6.0'
+
+      # build.bat 是本机自用脚本，CI 里直接调 gradle（--no-watch-fs 同样必需：
+      # runner 上文件监听偶发被禁，会导致卡在 "Calculating task graph"）。
+      - name: Compile
+        run: gradle compileJava compileKotlin --no-watch-fs --console=plain
+
+      # 纯逻辑测试：房间码往返/篡改/安全边界/畸形输入（不需要游戏、不需要网络）
+      - name: Room-code logic tests
+        run: gradle roomCodeLogicTest --no-watch-fs --console=plain
+
+      # 工况矩阵：中继开/纯P2P/并发双访客/候选乱序/端口撞车回退。
+      # 会在 runner 上真实起 iroh 端点并互相连接（回环），不需要外部网络。
+      - name: Scenario matrix
+        run: gradle scenarioMatrix --no-watch-fs --console=plain
+
+      # 长会话：100 秒保持，专门防「约 60 秒被自己的 join 超时误杀」这类回归
+      - name: Long-session regression (100s)
+        run: gradle irohLongSessionTest --no-watch-fs --console=plain
+
+      - name: Build jar
+        run: gradle build --no-watch-fs --console=plain
+
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2plan-iroh-jar
+          path: build/libs/*.jar
+          if-no-files-found: error
+
+      # 打 tag 时把 jar 附到对应 Release（省去手工上传）
+      - name: Attach jar to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/libs/*.jar

@@ -17,7 +17,7 @@ import java.util.List;
  * 游戏内房间面板：开房 / 关房 / 复制房间码 / 粘贴房间码加入 / 启停本机中继。
  *
  * <p>渲染线程只做「点按钮 + 读 volatile 状态」，所有等待（等候选地址、等打洞、中继绑定）都在
- * {@link P2PHost} / {@link P2PJoin} / {@link P2PRelay} 的后台线程里；这里在 {@link #tick()} 里刷新文案。
+ * {@link P2PHost} / {@link P2PJoin} 的后台线程里；这里在 {@link #tick()} 里刷新文案。
  *
  * <p>房间码放在可编辑框里，方便三连击选中复制；「复制」按钮直接写系统剪贴板。
  */
@@ -190,14 +190,14 @@ public class P2PLanScreen extends Screen {
 
         // 「验证模式」切换按钮（与端口同一行右侧）：正版验证 ↔ 离线 UUID。
         // 这是房主自己的策略选择，所以不自动切，由玩家点。
-        this.verifyToggle = Button.builder(Component.literal(OfflineMode.currentLabel(Minecraft.getInstance())),
+        this.verifyToggle = Button.builder(Component.translatable(OfflineMode.currentLabel(Minecraft.getInstance())),
                         b -> {
-                            note(Component.literal(OfflineMode.toggle(Minecraft.getInstance())));
-                            b.setMessage(Component.literal(OfflineMode.currentLabel(Minecraft.getInstance())));
-                            b.setTooltip(Tooltip.create(Component.literal(OfflineMode.tooltip(Minecraft.getInstance()))));
+                            note(Component.translatable(OfflineMode.toggle(Minecraft.getInstance())));
+                            b.setMessage(Component.translatable(OfflineMode.currentLabel(Minecraft.getInstance())));
+                            b.setTooltip(Tooltip.create(Component.translatable(OfflineMode.tooltip(Minecraft.getInstance()))));
                         })
                 .bounds(cx + 5, y - 24, 150, 20)
-                .tooltip(Tooltip.create(Component.literal(OfflineMode.tooltip(Minecraft.getInstance()))))
+                .tooltip(Tooltip.create(Component.translatable(OfflineMode.tooltip(Minecraft.getInstance()))))
                 .build();
         addRenderableWidget(this.verifyToggle);
 
@@ -358,7 +358,7 @@ public class P2PLanScreen extends Screen {
         // 验证模式按钮：标签跟随当前状态（进/出世界时也会变），不在世界里就置灰
         if (this.verifyToggle != null) {
             Minecraft mc = Minecraft.getInstance();
-            this.verifyToggle.setMessage(Component.literal(OfflineMode.currentLabel(mc)));
+            this.verifyToggle.setMessage(Component.translatable(OfflineMode.currentLabel(mc)));
             this.verifyToggle.active = OfflineMode.inWorld(mc);
         }
     }
@@ -374,10 +374,12 @@ public class P2PLanScreen extends Screen {
         }
         long left = exp - System.currentTimeMillis() / 1000L;
         if (left <= 0) {
-            return Component.literal("⚠ 房间码已过期，重新开房并要新码");
+            return Component.translatable("p2plan.code.expired_hint");
         }
         long h = left / 3600;
-        return Component.literal("房间码剩 " + (h >= 1 ? h + " 小时" : (left / 60) + " 分钟"));
+        return h >= 1
+                ? Component.translatable("p2plan.code.expiry_hours", h)
+                : Component.translatable("p2plan.code.expiry_minutes", left / 60);
     }
 
     private Component headline() {
@@ -402,9 +404,9 @@ public class P2PLanScreen extends Screen {
             // 按当前验证模式给准确引导：文案不能写死「离线已自动开启」——
             // 验证模式现在是手动按钮，首次玩家没点过时朋友会被「无效会话」挡在门外。
             Minecraft mc = Minecraft.getInstance();
-            String hint = OfflineMode.isOffline(mc)
-                    ? "离线模式已开，任何账户都能进"
-                    : "正版验证中，离线朋友进不来——点上方「验证模式」按钮切离线";
+            Component hint = Component.translatable(OfflineMode.isOffline(mc)
+                    ? "p2plan.hint.offline_ready"
+                    : "p2plan.hint.need_offline");
             return Component.translatable("p2plan.state.hosting_simple", hint);
         }
         return Component.translatable("p2plan.state.hint");

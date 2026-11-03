@@ -17,7 +17,7 @@ public record Candidate(Kind kind, String host, int port) {
         IPV4_REFLEXIVE((byte) 2),
         /** 同局域网 IPv4：仅作兜底（同一 Wi-Fi 下直接可用）。 */
         IPV4_LAN((byte) 3),
-        /** 中继地址：直连打洞失效时（双方对称型 NAT）经它转发，见 {@link RelayProtocol}。 */
+        /** 中继地址：旧 UDP 版的自建中继用；iroh 版自动走 DERP，此类型仅为房间码格式兼容而保留。 */
         RELAY((byte) 4),
         /**
          * iroh 节点标识（32 字节 NodeID 的 hex 串，64 字符）。
