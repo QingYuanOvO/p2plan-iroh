@@ -8,6 +8,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# softprops/action-gh-release 要建 Release 并上传附件，默认的只读 GITHUB_TOKEN 会 403。
+# 这一条漏写时表现很隐蔽：分支 push 的 run 是绿的（它压根不跑 release 步骤），
+# 只有 tag 那次红 —— 别被「CI 绿了」骗过去。
+permissions:
+  contents: write
+
 jobs:
   build:
     # 本模组的 jar 只打包 Windows x64 原生库（iroh_ffi.dll），但构建本身跨平台可跑；

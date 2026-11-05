@@ -387,7 +387,10 @@ public final class IrohTunnel implements P2PTunnel {
             e.close();
             endpoint = null;
         }
-        emit(TunnelState.CLOSED, "已关闭");
+        // detail 留空：CLOSED 没有可补充的诊断信息，而阶段名已由语言键给出。
+        // 这里若填「已关闭」，英文客户端会渲染成「Closed（已关闭）」——
+        // detail 是硬编码中文，不走语言文件，所以只放真正有诊断价值的内容。
+        emit(TunnelState.CLOSED, "");
     }
 
     /** 供 GUI 显示：本机 NodeID（房间码里最关键的那串）。 */

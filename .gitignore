@@ -7,6 +7,9 @@ build/
 # Release 资产暂存（jar 走 GitHub Release 附件，不进源码仓库）
 /release-assets/
 
+# 宣传视频工程（截图副本 + 渲染出的 MP4，体积大且非源码）
+/promo/
+
 # IDE
 .idea/
 *.iml

@@ -8,12 +8,15 @@
 
 ## 下载
 
-从 [**Releases 页面**](https://github.com/QingYuanOvO/p2plan-iroh/releases/latest) 下载
-`p2plan-iroh-0.1.1.jar`（约 9 MB），放进 `.minecraft/mods/`。
+从 [**Releases 页面**](https://github.com/QingYuanOvO/p2plan-iroh/releases/latest) 下载最新的 jar
+（约 9 MB），放进 `.minecraft/mods/`。
 
-| 当前版本 | 适用环境 |
+文件名规范：`p2plan_iroh-mc<游戏版本>-fabric-<mod版本>.jar`
+例：`p2plan_iroh-mc26.3-fabric-0.1.1.jar`。认准 `mc26.3` 那段——本模组目前只适配 26.3。
+
+| 当前发布 | 适用环境 |
 |---|---|
-| v0.1.1 | Minecraft **26.3** / Fabric Loader 0.19.5+ / **仅 Windows x64** |
+| [latest](https://github.com/QingYuanOvO/p2plan-iroh/releases/latest) | Minecraft **26.3** / Fabric Loader 0.19.5+ / **仅 Windows x64** |
 
 > ⚠️ **仅 Windows x64**。Linux / macOS 玩家需自行改 `build.gradle` 的原生库裁剪规则重新构建（见「自行扩展」）。
 
@@ -80,7 +83,7 @@ cd p2plan-iroh
 build.bat
 ```
 
-产物：`p2plan-iroh/build/libs/p2plan-iroh-*.jar`
+产物：`build/libs/p2plan_iroh-mc<游戏版本>-fabric-<mod版本>.jar`
 
 前置：**Gradle 9.6+**。脚本按以下顺序找 JDK 与 Gradle，全部可用环境变量覆盖，无需改脚本本身：
 

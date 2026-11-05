@@ -328,11 +328,17 @@ public final class P2PHost {
         if (st == null) {
             return Component.empty();
         }
-        String detail = st.detail();
         Component head = Component.translatable(st.stateKey());
-        return (detail == null || detail.isBlank())
-                ? head
-                : Component.translatable("p2plan.tunnel.line", head, detail);
+        String detail = st.detail();
+        // detail 是后台硬编码的中文诊断，**不走语言文件**，所以：
+        // ① 空的直接只显示阶段名；② 与阶段名同义的（历史上 CLOSED 曾填「已关闭」，
+        //    拼出来是「已关闭（已关闭）」、英文下是「Closed（已关闭）」）也只显示阶段名。
+        // 根因已在 IrohTunnel 的 emit 处修掉；这里再挡一道，防止以后别的状态重犯。
+        // 有信息量的 detail（如「房间码里没有 iroh NodeID」）必须保留，不要一并吞掉。
+        if (detail == null || detail.isBlank() || detail.equals(head.getString())) {
+            return head;
+        }
+        return Component.translatable("p2plan.tunnel.line", head, detail);
     }
 
     // ------------------------------------------------------------ 工具
