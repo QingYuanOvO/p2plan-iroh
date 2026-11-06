@@ -1,3 +1,5 @@
+<img src="docs/icon-512.png" width="120" align="right" alt="p2plan 图标">
+
 # p2plan —— Minecraft 26.3 纯模组 P2P 联机
 
 **装上就能连，不需要任何外部客户端、不需要开服务器、不需要端口映射。**

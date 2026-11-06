@@ -9,6 +9,7 @@ build/
 
 # 宣传视频工程（截图副本 + 渲染出的 MP4，体积大且非源码）
 /promo/
+/promo-v2/
 
 # IDE
 .idea/
@@ -46,3 +47,4 @@ port.txt
 relay-enabled.txt
 first-open-hinted.txt
 identities.txt
+# 宣传视频工程（截图副本/录屏/配音，体积大且非源码）

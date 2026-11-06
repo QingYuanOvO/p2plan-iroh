@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 
 /**
- * P2P LAN 主入口（双端都会跑）。
+ * p2plan 主入口（双端都会跑）。
  *
  * <p>职责：① 接管离线 UUID 稳定化；② 注册进房握手载荷与裁决；③ 提供 /p2plan 命令便于联调。
  * 真正的"发布端口/生成房间码"在客户端面板（P 键）里做，因为只有集成服务器能发布。

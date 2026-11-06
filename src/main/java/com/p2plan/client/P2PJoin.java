@@ -245,7 +245,7 @@ public final class P2PJoin {
             try {
                 Minecraft mc = Minecraft.getInstance();
                 ServerAddress serverAddress = parseAddress(target);
-                ServerData data = new ServerData("P2P LAN", target, ServerData.Type.OTHER);
+                ServerData data = new ServerData("p2plan", target, ServerData.Type.OTHER);
                 ConnectScreen.startConnecting(parent, mc, serverAddress, data, false, null);
             } catch (Throwable t) {
                 P2PLanMod.LOGGER.warn("[p2plan] 进入游戏失败", t);
